@@ -9,26 +9,41 @@ then run the command below in your terminal:
     pip install -r requirements.txt
 
 ## Guild to reproduce the experiment
-1. Contact me to get data and stimuli. 
+1. Contact me to get data and stimuli. Place the folder *data* and *stimuli* under the project
+directory:
+
+```
+.
+├── data
+├── stimuli
+├── .gitignore
+├── compute_perturbation.py
+└── ...
+```
+
 2. Specify the path of images you want to use in *img_path_list* in **compute_perturbation.py**.
 3. Obtain the perturbation scores by running:
 
 
+
     python compute_perturbation.py --brain_area PPA --filter_size 56 --use_pruning 1
+
 
 in which brain_area is PPA, FFA, or vTC; filter_size is the size of the mask in pixel; and use_pruning is 1 if we 
 use pruned features, 0 if use unpruned features.
+
 4. Plot the perturbation scores on top of original image by running:
 
 
     python visualize.py
 You will find the result image in ./res folder.
+
 5. That is just one image, one RDM from one brain area, one filter size, and only pruned network. To fully reproduce
 all results for many images, 3 brain areas PPA FFA vTC, 9 filter size from 24, 28, ... to 56, both pruned and unpruned
 network, run:
 
 
-
+    chmod u+x run.sh
     ./run.sh
 
 It will take really long time to finish (days).
