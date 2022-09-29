@@ -15,14 +15,10 @@ Options:
 """
 
 from docopt import docopt
-import pandas as pd
 import numpy as np
-import copy
 import pathlib
-import glob
 from tqdm import tqdm
 from scipy.stats import pearsonr
-from sklearn import preprocessing
 import torchvision.models as models
 
 from utils import extract_masked_repr, get_human_sim_arr
@@ -154,27 +150,28 @@ if __name__ == '__main__':
     ################################################################################
 
     # place the path images you want to produce heatmap here
-    img_path_list = ['./stimuli/set2/0017.jpg',
-                     # './stimuli/set2/0021.jpg',
-                     # # './stimuli/set2/0079.jpg',
-                     # # './stimuli/set2/0025.jpg',
-                     # # './stimuli/set2/0039.jpg',
-                     # # './stimuli/set2/0056.jpg',
-                     # './stimuli/set2/0109.jpg',
-                     # # './stimuli/set2/0111.jpg',
-                     # './stimuli/set2/0120.jpg',
-                     # # './stimuli/set2/0136.jpg',
-                     # # './stimuli/set2/0034.jpg',
-                     # './stimuli/set2/0036.jpg',
-                     # # './stimuli/set2/0061.jpg',
-                     # './stimuli/set2/0062.jpg',
-                     # # './stimuli/set2/0063.jpg',
-                     # # './stimuli/set2/0064.jpg',
-                     # './stimuli/set2/0065.jpg',
-                     # # './stimuli/set2/0066.jpg',
-                     # './stimuli/set2/0083.jpg',
-                     # # './stimuli/set2/0084.jpg',
-                    ]
+    img_path_list = [
+        './stimuli/set2/0017.jpg',
+        # # './stimuli/set2/0021.jpg',
+        # './stimuli/set2/0079.jpg',
+        # './stimuli/set2/0025.jpg',
+        # './stimuli/set2/0039.jpg',
+        # './stimuli/set2/0056.jpg',
+        # # './stimuli/set2/0109.jpg',
+        # './stimuli/set2/0111.jpg',
+        # # './stimuli/set2/0120.jpg',
+        # './stimuli/set2/0136.jpg',
+        # './stimuli/set2/0034.jpg',
+        # # './stimuli/set2/0036.jpg',
+        # './stimuli/set2/0061.jpg',
+        # # './stimuli/set2/0062.jpg',
+        # './stimuli/set2/0063.jpg',
+        # './stimuli/set2/0064.jpg',
+        # # './stimuli/set2/0065.jpg',
+        # './stimuli/set2/0066.jpg',
+        # # './stimuli/set2/0083.jpg',
+        # './stimuli/set2/0084.jpg',
+        ]
 
     for img_path in tqdm(img_path_list):
         img_idx = int(img_path.split('/')[-1].split('.')[0]) - 1
