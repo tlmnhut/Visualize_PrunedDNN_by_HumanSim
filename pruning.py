@@ -90,7 +90,6 @@ def prune_network(dnn_mat, fmri_rsm):
        Input:
        dnn_mat: N x M matrix containing the initial dnn representations with all features.
        human_mat: N x N matrix with human similarity judgements.
-       folds: number of folds for the cross-validation
 
        Returns:
        train_2oi: folds x M array with 2oi computed on the training set after every feature insertion
@@ -118,10 +117,10 @@ def prune_network(dnn_mat, fmri_rsm):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--set", help="either 1 or 2")
-    parser.add_argument("--roi", help="either PPA or FFA or vTC")
+    parser.add_argument("--brain_area", help="either PPA or FFA or vTC")
     args = parser.parse_args()
 
-    brain_area = args.roi
+    brain_area = args.brain_area
     dataset_name = 'set' + args.set
 
     # load unpruned activations from full set
@@ -135,5 +134,6 @@ if __name__ == '__main__':
 
     # prune
     features = prune_network(dnn, fmri_data)
-    np.save('./data/set'+args.set+'_'+brain_area+'_pruned_feat', features)
+    np.save('./data/set'+args.set+'_'+brain_area+'_retained_feat', features)
+    print('Retained features are saved in ./data')
   
