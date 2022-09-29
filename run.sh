@@ -2,7 +2,7 @@
 
 for brain_area in "vTC" "PPA" "FFA"
 do
-    for filter_size in 0
+    for filter_size in {24..56..4}
     do
         for use_pruning in 0 1
         do

@@ -1,16 +1,8 @@
 import numpy as np
-from tqdm import tqdm
-import os
-import pathlib
-import matplotlib.pyplot as plt
+from scipy.io import loadmat
 from PIL import Image
 import torch
-import torch.nn as nn
-import torchvision.models as models
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader
-import cv2
 
 
 def upper_tri(r):
@@ -72,38 +64,6 @@ def get_activations(net, layer, input_tensor, device, keep_dim=None):
     return feats
 
 
-def extract_feat(net, layer, dataloader, device):
-    """
-    Extract the activations from a specific layer from a pretrained network
-    :param net: DNN pretrained model
-    :param layer: int, index of the layer that needed to extract (use print(net) to see the indices of layers)
-    :param dataloader: pytorch data loader
-    :param device: str, either 'cpu' or 'cuda'
-    :return: tensor, shape n_sample x n_feature
-    """
-
-    features = {}
-    def get_features(name):
-        def hook(model, input, output):
-            features[name] = output.detach()
-        return hook
-    net._modules['classifier'][layer].register_forward_hook(get_features('feat'))
-
-    feats, labels = [], []
-    # loop through batches
-    with torch.no_grad():
-        for images, label in dataloader:
-            # print(path)
-            outputs = net(images.to(device))
-            feats.append(features['feat'].detach().cpu().numpy())
-            labels.append(label.numpy())
-
-    feats = np.concatenate(feats)
-    # labels = np.concatenate(labels)
-
-    return feats.reshape(len(dataloader.dataset), -1)
-
-
 def extract_masked_repr(model, img_path, layer, keep_dim, filter_size, stride, device='cpu'):
     """
     Compute activations of all masked version of the input image.
@@ -155,191 +115,39 @@ def extract_masked_repr(model, img_path, layer, keep_dim, filter_size, stride, d
     return output
 
 
-def show_heatmap(img_path, stride, color_grid_size, salient_score, grayscale=True, save_path=None):
+def get_human_sim_arr(brain_area, dataset_name, chosen_img_idx_list=[], restore_sim_mat=False):
     """
-    Transform salient scores to colors and display them on top of the image.
-    Green: area that if masked, the 2OI score decreases compared to unmasked 2OI,
-    Red: area that if masked, the 2OI score increases compared to unmasked 2OI.
-    :param img_path: str, path to image
-    :param stride: int, distance in pixel between two consecutive filters
-    :param color_grid_size: int, size in pixel of a square colored region. Do not enter a 2D shape
-    because the color grid is square, later we construct the 2D size as color_grid_size x color_grid_size.
-    :param salient_score: matrix, salient scores for each colored region
-    :param grayscale: bool, if True then use gray image background, otherwise keep the color original background
-    :param save_path: str, path to save the heat map image
-    :return: None, if save_path is provided then the heatmap will be saved, otherwise just display the heatmap
+    Average the human (fMRI) RDM of many participants. RDM is selected from a specific brain area such as FFA, PPA.
+    :param brain_area: str, e.g. FFA, PPA, vTC
+    :param dataset_name: str, either set1 or set2
+    :param chosen_img_idx_list: list, index of images chosen to form a smaller Representational Dissimilarity Matrix (RDM)
+    Only use in case that you want to select a subset of images and to construct a small RDM
+    :param restore_sim_mat: bool, whether to restore the flattened 1D RDM to the full 2D RDM
+    :return: np.ndarray, averaged human RDM from a selective brain area
     """
 
-    input_size = 224
-    preprocess_m = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(input_size),
-        transforms.ToTensor()
-    ])
+    # load fMRI data, then average the data from multiple participants
+    fmri_data = loadmat('./data/FMRI.mat', simplify_cells=True)['FMRI']
+    select_roi = fmri_data[brain_area][dataset_name]
+    dissim_scores = select_roi['pairwisedistances']
+    avg_dissim_scores = np.mean(dissim_scores, axis=0)
 
-    # background image
-    input_image = Image.open(img_path)
-    if grayscale:
-        input_image = input_image.convert('L')
-    else:
-        input_image = input_image.convert('RGB')
-    input_image = preprocess_m(input_image)
-    input_image = input_image.numpy()
-    input_image = 255.0 / input_image.max() * (input_image - input_image.min())  # scale to display
-    if grayscale:
-        # because the heatmap is RGB, we have to convert the background again to RGB but the colors are still gray
-        input_image = np.repeat(input_image[0][None, ...], 3, axis=0)
+    # restore the 2D RDM. First, fill dissimilarity values in the upper triangle part.
+    # Second, copy the upper triangle part to the lower triangle part.
+    chunk_list = []
+    start_idx = 0
+    avg_dissim_scores = list(avg_dissim_scores)
+    for i in range(143, -1, -1):
+        chunk = [0] * (144 - i) + avg_dissim_scores[start_idx:start_idx + i]
+        chunk_list.append(chunk)
+        start_idx += i
+    avg_rdm = np.array(chunk_list)
+    avg_rdm += avg_rdm.T
 
-    # create the heatmap based on the salient scores
-    # first create a 0-value image, then assign the values to each region to create colors
-    mask_tensor = torch.zeros([3, input_size, input_size])
-    n_row, n_col = 224 // stride, 224 // stride
-    for r in range(n_row):
-        for c in range(n_col):
-            color_region = torch.zeros([3, color_grid_size, color_grid_size])
-            if salient_score[r, c] > 0:  # 2OI masked decrease compared to 2OI baseline, color green
-                try:
-                    # scale the shade of color based on the max score
-                    color_region[1] = int(salient_score[r, c] / np.max(salient_score) * 255)
-                except ValueError:
-                    color_region[1] = 0
-            else:  # 2OI masked increase, color red
-                try:
-                    # scale the shade of color based on the min score
-                    color_region[0] = int(salient_score[r, c] / np.min(salient_score) * 255)
-                except ValueError:
-                    color_region[0] = 0
-            coor_row = r * stride
-            coor_col = c * stride
-            # assign color
-            mask_tensor[:, coor_row:coor_row + color_grid_size, coor_col:coor_col + color_grid_size] = color_region
-    mask = mask_tensor.numpy()
+    if chosen_img_idx_list:
+        avg_rdm = avg_rdm[:, chosen_img_idx_list][chosen_img_idx_list, :]
 
-    # put the mask color image on top of background image
-    img_with_mask = cv2.addWeighted(mask, 0.3, input_image, 0.7, 0, mask)
+    if not restore_sim_mat:
+        return upper_tri(avg_rdm)
 
-    # post-processing
-    rescaled = (255.0 / img_with_mask.max() * (img_with_mask - img_with_mask.min())).astype(np.uint8)
-    im = Image.fromarray(rescaled.transpose(1, 2, 0), 'RGB')
-    if save_path:
-        im.save(save_path)
-    else:
-        im.show()
-
-
-def show_img_grid():
-    """
-    Plot result images in grid
-    :return: None
-    """
-
-    def _resize_crop_img(img_path):
-        """
-        Resize and crop original image to fit their size with other images.
-        :param img_path: str, path to original image
-        :return: Image
-        """
-        preprocess_m = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-        ])
-        image = Image.open(img_path).convert('RGB')
-        image = preprocess_m(image)
-        return image
-
-    aggregate_method = 'mean'
-
-    pathlib.Path(f'./res/grid/set2_{aggregate_method}/').mkdir(parents=True, exist_ok=True)
-    # img_path_list = sorted([i.name for i in pathlib.Path(f'./stimuli/set2_2/').glob('*')])
-    img_path_list = ['./stimuli/set2/0017.jpg',
-                     './stimuli/set2/0021.jpg',
-                     # './stimuli/set2/0079.jpg',
-                     # './stimuli/set2/0025.jpg',
-                     # './stimuli/set2/0039.jpg',
-                     # './stimuli/set2/0056.jpg',
-                     './stimuli/set2/0109.jpg',
-                     # './stimuli/set2/0111.jpg',
-                     './stimuli/set2/0120.jpg',
-                     # './stimuli/set2/0136.jpg',
-                     # './stimuli/set2/0034.jpg',
-                     './stimuli/set2/0036.jpg',
-                     # './stimuli/set2/0061.jpg',
-                     './stimuli/set2/0062.jpg',
-                     # './stimuli/set2/0063.jpg',
-                     # './stimuli/set2/0064.jpg',
-                     './stimuli/set2/0065.jpg',
-                     # './stimuli/set2/0066.jpg',
-                     './stimuli/set2/0083.jpg',
-                     # './stimuli/set2/0084.jpg',
-                     ]
-
-    f, axarr = plt.subplots(2, 3, figsize=(12, 9))
-    for img_path in tqdm(img_path_list):
-        # axarr[0, 0].imshow(_resize_crop_img(f'./stimuli/set2_2/' + img_path))
-        axarr[0, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/0/' + img_path.split('/')[-1]))
-        axarr[1, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/1/' + img_path.split('/')[-1]))
-        axarr[0, 1].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/0/' + img_path.split('/')[-1]))
-        axarr[1, 1].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/1/' + img_path.split('/')[-1]))
-        axarr[0, 2].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/0/' + img_path.split('/')[-1]))
-        axarr[1, 2].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/1/' + img_path.split('/')[-1]))
-
-        # labels
-        label_font_size = 20
-        axarr[0, 0].set_xlabel('FFA unpruned', fontsize=label_font_size)
-        # axarr[0, 0].xaxis.set_label_position('top')
-        # axarr[0, 0].set_ylabel('full set')
-        axarr[1, 0].set_xlabel('FFA pruned', fontsize=label_font_size)
-        # axarr[0, 1].xaxis.set_label_position('top')
-        axarr[0, 1].set_xlabel('PPA unpruned', fontsize=label_font_size)
-        axarr[1, 1].set_xlabel('PPA pruned', fontsize=label_font_size)
-        axarr[0, 2].set_xlabel('vTC unpruned', fontsize=label_font_size)
-        axarr[1, 2].set_xlabel('vTC pruned', fontsize=label_font_size)
-
-        # Turn off tick labels
-        axarr[0, 0].set_xticks([])
-        axarr[0, 0].set_yticks([])
-        axarr[0, 1].set_xticks([])
-        axarr[0, 1].set_yticks([])
-        axarr[1, 0].set_xticks([])
-        axarr[1, 0].set_yticks([])
-        axarr[1, 1].set_xticks([])
-        axarr[1, 1].set_yticks([])
-        axarr[0, 2].set_xticks([])
-        axarr[0, 2].set_yticks([])
-        axarr[1, 2].set_xticks([])
-        axarr[1, 2].set_yticks([])
-
-        plt.savefig(f'./res/grid/set2_{aggregate_method}/' + img_path.split('/')[-1])
-
-
-if __name__ == '__main__':
-    # device = 'cpu'#torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # model = models.vgg19(pretrained=True)
-    # model.eval()
-    # #print(model)
-    # # img_path_list = ['stimuli/set1/0002.jpg']
-    # #
-    # # extract_masked_repr(model=model, img_path_list=img_path_list,
-    # #                     layer=[4], filter_size=int(224/2), stride=int(224/2))
-    #
-    # dataset = datasets.ImageFolder(
-    #     root='./stimuli_/set_test_2',
-    #     transform=transforms.Compose([
-    #         transforms.Resize(256),
-    #         transforms.CenterCrop(224),
-    #         transforms.ToTensor(),
-    #         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    # ]))
-    # data_loader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
-    # tmp = extract_feat(net=model, layer=3, dataloader=data_loader, device=device)
-    # np.save('./data/set_test_2_repr_classifier_3', tmp)
-
-    # repr_mat = np.load('./data/set2_repr_classifier_3.npy')
-    # df = pd.DataFrame(repr_mat.T)
-    # print(df)
-    # corr_mat = df.corr()
-    # print(corr_mat, corr_mat.shape)
-    # np.save('./data/set2_corr', corr_mat)
-
-    show_img_grid()
-
+    return avg_rdm
