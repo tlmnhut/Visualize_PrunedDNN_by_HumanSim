@@ -5,6 +5,7 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import torchvision.transforms as transforms
 
 
@@ -115,6 +116,7 @@ def plot_heatmap(img_path_list, dataset_name, brain_area, use_pruning, aggregate
             except FileNotFoundError:
                 pass
         viz_scores = np.array(viz_scores)
+        # viz_scores = viz_scores * ((viz_scores <= -0.01)*1 + (viz_scores >= 0.01)*1)  # TODO
 
         # aggregate by taking mean or absmax
         if aggregate_method == 'absmax':
@@ -158,63 +160,112 @@ def show_img_grid(img_path_list, aggregate_method):
 
     pathlib.Path(f'./res/grid/set2_{aggregate_method}/').mkdir(parents=True, exist_ok=True)
 
-    f, axarr = plt.subplots(2, 3, figsize=(12, 9))
+    f, axarr = plt.subplots(1, 5, figsize=(20, 6), gridspec_kw={'wspace':0.05, 'hspace':0.05})
     for img_path in tqdm(img_path_list):
-        # axarr[0, 0].imshow(_resize_crop_img(f'./stimuli/set2_2/' + img_path))
-        axarr[0, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/0/' + img_path.split('/')[-1]))
-        axarr[1, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/1/' + img_path.split('/')[-1]))
-        axarr[0, 1].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/0/' + img_path.split('/')[-1]))
-        axarr[1, 1].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/1/' + img_path.split('/')[-1]))
-        axarr[0, 2].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/0/' + img_path.split('/')[-1]))
-        axarr[1, 2].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/1/' + img_path.split('/')[-1]))
+        axarr[0].imshow(_resize_crop_img(img_path))
+        # axarr[0, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/0/' + img_path.split('/')[-1]))
+        # axarr[1, 0].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/FFA/1/' + img_path.split('/')[-1]))
+        axarr[1].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/0/' + img_path.split('/')[-1]))
+        axarr[2].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/PPA/1/' + img_path.split('/')[-1]))
+        axarr[3].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/0/' + img_path.split('/')[-1]))
+        axarr[4].imshow(Image.open(f'./res/aggregate_{aggregate_method}/set2/img/vTC/1/' + img_path.split('/')[-1]))
 
         # labels
         label_font_size = 20
-        axarr[0, 0].set_xlabel('FFA unpruned', fontsize=label_font_size)
+        axarr[0].set_xlabel('Original image', fontsize=label_font_size)
+
         # axarr[0, 0].xaxis.set_label_position('top')
         # axarr[0, 0].set_ylabel('full set')
-        axarr[1, 0].set_xlabel('FFA pruned', fontsize=label_font_size)
+        # axarr[1, 0].set_xlabel('FFA pruned', fontsize=label_font_size)
         # axarr[0, 1].xaxis.set_label_position('top')
-        axarr[0, 1].set_xlabel('PPA unpruned', fontsize=label_font_size)
-        axarr[1, 1].set_xlabel('PPA pruned', fontsize=label_font_size)
-        axarr[0, 2].set_xlabel('vTC unpruned', fontsize=label_font_size)
-        axarr[1, 2].set_xlabel('vTC pruned', fontsize=label_font_size)
+        axarr[1].set_xlabel('PPA unpruned', fontsize=label_font_size)
+        axarr[2].set_xlabel('PPA pruned', fontsize=label_font_size)
+        axarr[3].set_xlabel('vTC unpruned', fontsize=label_font_size)
+        axarr[4].set_xlabel('vTC pruned', fontsize=label_font_size)
+        # for position in range(0, 5): axarr[position].xaxis.set_label_position('top')
 
         # Turn off tick labels
-        for position in [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (1, 2)]:
+        for position in [0, 1, 2, 3, 4]:
             axarr[position].set_xticks([])
             axarr[position].set_yticks([])
 
-        plt.savefig(f'./res/grid/set2_{aggregate_method}/' + img_path.split('/')[-1])
+        # add boxes
+        for position in [1, 2, 3, 4]:
+            axarr[position].add_patch(Rectangle((27, 27), 170, 170, linewidth=1, edgecolor='black', facecolor='none'))
+
+        # # Some special treatments for border
+        # for position in ['top', 'bottom', 'right', 'left']:
+        #     axarr[1, 0].spines[position].set_visible(False)
+
+        plt.savefig(f'./res/grid/set2_{aggregate_method}/' + img_path.split('/')[-1], bbox_inches='tight')
 
 
 if __name__ == '__main__':
-    img_path_list = ['./stimuli/set2/0017.jpg',
-                     # './stimuli/set2/0021.jpg',
-                     # # './stimuli/set2/0079.jpg',
-                     # # './stimuli/set2/0025.jpg',
-                     # # './stimuli/set2/0039.jpg',
-                     # # './stimuli/set2/0056.jpg',
-                     # './stimuli/set2/0109.jpg',
-                     # # './stimuli/set2/0111.jpg',
-                     # './stimuli/set2/0120.jpg',
-                     # # './stimuli/set2/0136.jpg',
-                     # # './stimuli/set2/0034.jpg',
-                     # './stimuli/set2/0036.jpg',
-                     # # './stimuli/set2/0061.jpg',
-                     # './stimuli/set2/0062.jpg',
-                     # # './stimuli/set2/0063.jpg',
-                     # # './stimuli/set2/0064.jpg',
-                     # './stimuli/set2/0065.jpg',
-                     # # './stimuli/set2/0066.jpg',
-                     # './stimuli/set2/0083.jpg',
-                     # # './stimuli/set2/0084.jpg',
-                     ]
+    img_path_list = [
+        './stimuli/set2/0017.jpg',
+        # './stimuli/set2/0021.jpg',
+        # './stimuli/set2/0079.jpg',
+        # './stimuli/set2/0025.jpg',
+        # './stimuli/set2/0039.jpg',
+        # './stimuli/set2/0056.jpg',
+        # './stimuli/set2/0109.jpg',
+        # './stimuli/set2/0111.jpg',
+        # './stimuli/set2/0120.jpg',
+        # './stimuli/set2/0136.jpg',
+        # './stimuli/set2/0034.jpg',
+        # './stimuli/set2/0036.jpg',
+        # './stimuli/set2/0061.jpg',
+        # './stimuli/set2/0062.jpg',
+        # './stimuli/set2/0063.jpg',
+        # './stimuli/set2/0064.jpg',
+        # './stimuli/set2/0065.jpg',
+        # './stimuli/set2/0066.jpg',
+        # './stimuli/set2/0083.jpg',
+        # './stimuli/set2/0084.jpg',
+        #
+        # # texture
+        # './stimuli/set2/0002.jpg',
+        # './stimuli/set2/0004.jpg',
+        # './stimuli/set2/0006.jpg',
+        # './stimuli/set2/0012.jpg',
+        # './stimuli/set2/0013.jpg',
+        # './stimuli/set2/0018.jpg',
+        # './stimuli/set2/0019.jpg',
+        # './stimuli/set2/0020.jpg',
+        # './stimuli/set2/0027.jpg',
+        # './stimuli/set2/0050.jpg',
+        # './stimuli/set2/0055.jpg',
+        # './stimuli/set2/0075.jpg',
+        # './stimuli/set2/0080.jpg',
+        # './stimuli/set2/0081.jpg',
+        # './stimuli/set2/0090.jpg',
+        # './stimuli/set2/0093.jpg',
+        # './stimuli/set2/0106.jpg',
+        # './stimuli/set2/0138.jpg',
+        #
+        # # imagenet class
+        # './stimuli/set2/0001.jpg',
+        # './stimuli/set2/0014.jpg',
+        # './stimuli/set2/0029.jpg',
+        # './stimuli/set2/0033.jpg',
+        # './stimuli/set2/0077.jpg',
+        # './stimuli/set2/0089.jpg',
+        # './stimuli/set2/0112.jpg',
+        # './stimuli/set2/0114.jpg',
+        # './stimuli/set2/0118.jpg',
+        # './stimuli/set2/0119.jpg',
+        # './stimuli/set2/0121.jpg',
+        # './stimuli/set2/0144.jpg',
+    ]
 
-    plot_heatmap(img_path_list=img_path_list,
-                 dataset_name='set2',
-                 brain_area='PPA',
-                 use_pruning=1,
-                 aggregate_method='mean')
+    for brain_area in ['PPA', 'vTC']:
+        for use_pruning in [0, 1]:
+            for aggregate_method in ['mean', 'absmax']:
+                plot_heatmap(img_path_list=img_path_list,
+                             dataset_name='set2',
+                             brain_area=brain_area,
+                             use_pruning=use_pruning,
+                             aggregate_method=aggregate_method)
 
-    # show_img_grid(img_path_list=img_path_list, aggregate_method='mean')
+    for aggregate_method in ['mean', 'absmax']:
+        show_img_grid(img_path_list=img_path_list, aggregate_method=aggregate_method)
