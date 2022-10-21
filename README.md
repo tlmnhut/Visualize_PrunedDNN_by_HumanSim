@@ -9,13 +9,18 @@ then run the command below in your terminal:
     pip install -r requirements.txt
 
 ## Guild to reproduce the experiment
-1. Contact me to get data and stimuli. Place the folder *data* and *stimuli* under the project
-directory:
+1. The stimuli and brain/behavior data were collected by [King et al., 2019](https://www.sciencedirect.com/science/article/pii/S1053811919303702).
+Please download [their dataset](https://osf.io/ma2rj/) and place the fMRI data (FMRI.mat) in the folder *data*, and the
+stimuli in the folder *stimuli* as below:
 
 ```
 .
 ├── data
+    ├── FMRI.mat
+    ├── ...
 ├── stimuli
+    ├── set1
+    ├── set2
 ├── .gitignore
 ├── compute_perturbation.py
 └── ...
@@ -59,3 +64,7 @@ It will take really long time to finish (days).
 - **pruning.py**: prune network
 - **extract_feature.py**: extract features of stimuli
 - **utils.py**: utility and helper functions
+
+## Sample results
+
+Please check folder *results* to see the sample results.
