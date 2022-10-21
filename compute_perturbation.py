@@ -17,6 +17,7 @@ Options:
 from docopt import docopt
 import numpy as np
 import pathlib
+from datetime import datetime
 from tqdm import tqdm
 from scipy.stats import pearsonr
 import torchvision.models as models
@@ -146,6 +147,7 @@ if __name__ == '__main__':
         parents=True, exist_ok=True)
     pathlib.Path(f'./res/{dataset_name}/rdm/{brain_area}/{filter_size}/{use_pruning}/').mkdir(
         parents=True, exist_ok=True)
+    pathlib.Path(f'./res/{dataset_name}/activation/{filter_size}/').mkdir(parents=True, exist_ok=True)
 
     ################################################################################
 
@@ -171,7 +173,61 @@ if __name__ == '__main__':
         # './stimuli/set2/0066.jpg',
         # # './stimuli/set2/0083.jpg',
         # './stimuli/set2/0084.jpg',
-        ]
+        #
+        # # texture
+        # './stimuli/set2/0002.jpg',
+        # './stimuli/set2/0004.jpg',
+        # './stimuli/set2/0006.jpg',
+        # './stimuli/set2/0012.jpg',
+        # './stimuli/set2/0013.jpg',
+        # './stimuli/set2/0018.jpg',
+        # './stimuli/set2/0019.jpg',
+        # './stimuli/set2/0020.jpg',
+        # './stimuli/set2/0027.jpg',
+        # './stimuli/set2/0050.jpg',
+        # './stimuli/set2/0055.jpg',
+        # './stimuli/set2/0075.jpg',
+        # './stimuli/set2/0080.jpg',
+        # './stimuli/set2/0081.jpg',
+        # './stimuli/set2/0090.jpg',
+        # './stimuli/set2/0093.jpg',
+        # './stimuli/set2/0106.jpg',
+        # './stimuli/set2/0138.jpg',
+        #
+        # # imagenet class
+        # './stimuli/set2/0001.jpg',
+        # './stimuli/set2/0014.jpg',
+        # './stimuli/set2/0029.jpg',
+        # './stimuli/set2/0033.jpg',
+        # './stimuli/set2/0077.jpg',
+        # './stimuli/set2/0089.jpg',
+        # './stimuli/set2/0112.jpg',
+        # './stimuli/set2/0114.jpg',
+        # './stimuli/set2/0118.jpg',
+        # './stimuli/set2/0119.jpg',
+        # './stimuli/set2/0121.jpg',
+        # './stimuli/set2/0144.jpg',
+    ]
+
+    # img_path_list = [
+    #     # flip
+    #     './stimuli/set2_flip/0012.jpg',
+    #     './stimuli/set2_flip/0021.jpg',
+    #     './stimuli/set2_flip/0025.jpg',
+    #     './stimuli/set2_flip/0027.jpg',
+    #     './stimuli/set2_flip/0039.jpg',
+    #     './stimuli/set2_flip/0065.jpg',
+    #     './stimuli/set2_flip/0066.jpg',
+    #     './stimuli/set2_flip/0079.jpg',
+    #     './stimuli/set2_flip/0081.jpg',
+    #     './stimuli/set2_flip/0083.jpg',
+    #     './stimuli/set2_flip/0084.jpg',
+    #     './stimuli/set2_flip/0106.jpg',
+    #     './stimuli/set2_flip/0109.jpg',
+    #     './stimuli/set2_flip/0111.jpg',
+    #     './stimuli/set2_flip/0120.jpg',
+    #     './stimuli/set2_flip/0136.jpg',
+    #     ]
 
     for img_path in tqdm(img_path_list):
         img_idx = int(img_path.split('/')[-1].split('.')[0]) - 1
@@ -189,3 +245,5 @@ if __name__ == '__main__':
         compute_perturbation(human_rdm=np.delete(human_sim[img_idx], img_idx), dnn_rdm=dnn_rdm,
                              save_path=f'./res/{dataset_name}/score/{brain_area}/{filter_size}/{use_pruning}/' +
                              img_path.split('/')[-1].split('.')[0])
+
+    print('--- finish time:', datetime.now())
