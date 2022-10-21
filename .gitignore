@@ -104,7 +104,9 @@ venv.bak/
 .mypy_cache/
 
 # dataset and activations
-data/*
+data/BEHAVIOR.mat
+data/FMRI.mat
+
 stimuli/*
 stimuli_/*
 res/*
