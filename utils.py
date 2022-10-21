@@ -1,3 +1,4 @@
+import pathlib
 import numpy as np
 from scipy.io import loadmat
 from PIL import Image
@@ -83,6 +84,17 @@ def extract_masked_repr(model, img_path, layer, keep_dim, filter_size, stride, d
     activation of the unmasked original image.
     """
 
+    # If activations have been already existed, just load them and return
+    dataset_name = img_path.split('/')[-2]
+    image_name = img_path.split('/')[-1].split('.')[0]
+    activation_path = f'./res/{dataset_name}/activation/{filter_size}/{image_name}.npy'
+    if pathlib.Path(activation_path).exists():
+        output = np.load(activation_path)
+        if keep_dim is not None:
+            output = output[:, keep_dim]
+        return output
+
+    # If activations have not been computed yet
     # Define of resize and add zero padding to image
     input_size = 224  # standard size of VGG-19 input images
     padding_size = (filter_size - stride) // 2
@@ -112,6 +124,11 @@ def extract_masked_repr(model, img_path, layer, keep_dim, filter_size, stride, d
     # Extract activations from the collection of original and masked images
     output = get_activations(net=model, layer=layer, input_tensor=torch.stack(img_collection),
                              device=device, keep_dim=keep_dim)
+
+    # save to reuse in the future
+    if keep_dim is None:
+        np.save(f'./res/{dataset_name}/activation/{filter_size}/{image_name}', output)
+
     return output
 
 
